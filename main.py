@@ -16,6 +16,7 @@ def packet_callback(packet):
         dst = packet[IP].dst
         proto = packet[IP].proto
         logger.info(f"Packet: {src} -> {dst} (Protocol: {proto})")
+        logger.info(f"Packet details: {packet.summary()}")
 
 def stop_filter(packet):
     return not sniffing_active  # Stop sniffing if sniffing_active becomes False
@@ -25,6 +26,24 @@ def start_sniffing():
     sniffing_active = True
     sniff(prn=packet_callback, store=0, stop_filter=stop_filter)
     logger.info("Sniffing ended.")
+
+@app.get("/last_packet")
+def get_last_packet():
+    print("last packet function called ")
+    global sniffing_active
+    sniffing_active = False
+    logger.info("Packet sniffing stop requested.")
+
+    last_packet = sniff(count=1)
+    # Check if a packet was captured
+    if last_packet:
+        # Print the summary of the first (and only) packet captured
+        print("Summary of the last packet received:")
+        print(last_packet[0].summary())
+        # print("IP:", last_packet[0][IP])
+        # print("Source IP:", last_packet[0][IP].src)
+    else:
+        print("No packet was captured.")
 
 @app.get("/start_sniffing")
 def start_sniffing_endpoint():
