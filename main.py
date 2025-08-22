@@ -70,3 +70,40 @@ def read_root():
 @app.get("/status")
 def get_status():
     return {"status": "Monitoring" if sniffing_active else "Not Monitoring"}
+
+dataset_file = "packets_dataset.csv"
+
+# Initialize CSV file with headers
+with open(dataset_file, mode="w", newline="") as f:
+    writer = csv.writer(f)
+    writer.writerow(["timestamp", "src_ip", "dst_ip", "protocol", "src_port", "dst_port", "length", "flags", "payload"])
+
+def packet_callback(packet):
+    timestamp = time.time()
+    src = packet[IP].src if IP in packet else None
+    dst = packet[IP].dst if IP in packet else None
+    proto = packet[IP].proto if IP in packet else None
+    length = len(packet)
+
+    src_port, dst_port, flags = None, None, None
+    if TCP in packet:
+        src_port = packet[TCP].sport
+        dst_port = packet[TCP].dport
+        flags = packet[TCP].flags
+    elif UDP in packet:
+        src_port = packet[UDP].sport
+        dst_port = packet[UDP].dport
+
+    # Limit payload size (avoid huge binary dumps)
+    payload = bytes(packet[IP].payload)[:50] if IP in packet else b""
+
+    # Append row to CSV
+    with open(dataset_file, mode="a", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow([timestamp, src, dst, proto, src_port, dst_port, length, flags, payload])
+
+    logger.info(f"Captured packet {src}:{src_port} -> {dst}:{dst_port} Proto:{proto} Len:{length}")
+
+
+uvicorn.run(app, host="0.0.0.0", port=8000)
+
